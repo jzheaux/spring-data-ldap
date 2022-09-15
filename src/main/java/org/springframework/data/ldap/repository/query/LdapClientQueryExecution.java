@@ -15,27 +15,19 @@
  */
 package org.springframework.data.ldap.repository.query;
 
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.convert.DtoInstantiatingConverter;
+import org.springframework.data.ldap.repository.LdapRepository;
 import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.mapping.model.EntityInstantiators;
 import org.springframework.data.repository.query.ResultProcessor;
 import org.springframework.data.repository.query.ReturnedType;
-import org.springframework.ldap.core.ContextMapper;
-import org.springframework.ldap.core.DirContextOperations;
 import org.springframework.ldap.core.LdapClient;
-import org.springframework.ldap.core.LdapOperations;
-import org.springframework.ldap.filter.Filter;
-import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
+import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.query.LdapQuery;
-import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -47,29 +39,27 @@ import org.springframework.util.ClassUtils;
  * @since 2.6
  */
 @FunctionalInterface
-interface LdapQueryExecution {
+interface LdapClientQueryExecution {
 
 	Object execute(LdapQuery query);
 
 	/**
-	 * {@link LdapQueryExecution} returning a single object.
+	 * {@link LdapClientQueryExecution} returning a single object.
 	 *
 	 * @author Mark Paluch
 	 */
-	final class FindOneExecution implements LdapQueryExecution {
+	final class FindOneExecution implements LdapClientQueryExecution {
 
-		private final LdapOperations operations;
-		private final Class<?> entityType;
+		private final LdapMapperClient<?> ldap;
 
-		FindOneExecution(LdapOperations operations, Class<?> entityType) {
-			this.operations = operations;
-			this.entityType = entityType;
+		FindOneExecution(LdapMapperClient<?> ldap) {
+			this.ldap = ldap;
 		}
 
 		@Override
 		public Object execute(LdapQuery query) {
 			try {
-				return operations.findOne(query, entityType);
+				return ldap.search().query(query).toObject();
 			} catch (EmptyResultDataAccessException e) {
 				return null;
 			}
@@ -77,58 +67,54 @@ interface LdapQueryExecution {
 	}
 
 	/**
-	 * {@link LdapQueryExecution} returning a list of objects.
+	 * {@link LdapClientQueryExecution} returning a list of objects.
 	 *
 	 * @author Mark Paluch
 	 */
-	final class CollectionExecution implements LdapQueryExecution {
+	final class CollectionExecution implements LdapClientQueryExecution {
 
-		private final LdapOperations operations;
-		private final Class<?> entityType;
+		private final LdapMapperClient<?> ldap;
 
-		CollectionExecution(LdapOperations operations, Class<?> entityType) {
-			this.operations = operations;
-			this.entityType = entityType;
+		CollectionExecution(LdapMapperClient<?> ldap) {
+			this.ldap = ldap;
 		}
 
 		@Override
 		public Object execute(LdapQuery query) {
-			return operations.find(query, entityType);
+			return ldap.search().query(query).toList();
 		}
 	}
 
 	/**
-	 * {@link LdapQueryExecution} for a Stream.
+	 * {@link LdapClientQueryExecution} for a Stream.
 	 *
 	 * @author Mark Paluch
 	 */
-	final class StreamExecution implements LdapQueryExecution {
+	final class StreamExecution implements LdapClientQueryExecution {
 
-		private final LdapOperations operations;
-		private final Class<?> entityType;
+		private final LdapMapperClient<?> ldap;
 		private final Converter<Object, Object> resultProcessing;
 
-		StreamExecution(LdapOperations operations, Class<?> entityType, Converter<Object, Object> resultProcessing) {
-			this.operations = operations;
-			this.entityType = entityType;
+		StreamExecution(LdapMapperClient<?> ldap, Converter<Object, Object> resultProcessing) {
+			this.ldap = ldap;
 			this.resultProcessing = resultProcessing;
 		}
 
 		@Override
 		public Object execute(LdapQuery query) {
-			return operations.find(query, entityType).stream().map(resultProcessing::convert);
+			return ldap.search().query(query).toStream().map(resultProcessing::convert);
 		}
 	}
 
 	/**
-	 * An {@link LdapQueryExecution} that wraps the results of the given delegate with the given result processing.
+	 * An {@link LdapClientQueryExecution} that wraps the results of the given delegate with the given result processing.
 	 */
-	final class ResultProcessingExecution implements LdapQueryExecution {
+	final class ResultProcessingExecution implements LdapClientQueryExecution {
 
-		private final LdapQueryExecution delegate;
+		private final LdapClientQueryExecution delegate;
 		private final Converter<Object, Object> converter;
 
-		public ResultProcessingExecution(LdapQueryExecution delegate, Converter<Object, Object> converter) {
+		public ResultProcessingExecution(LdapClientQueryExecution delegate, Converter<Object, Object> converter) {
 			this.delegate = delegate;
 			this.converter = converter;
 		}
