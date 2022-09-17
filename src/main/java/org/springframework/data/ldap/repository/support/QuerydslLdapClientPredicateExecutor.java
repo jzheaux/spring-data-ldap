@@ -48,7 +48,6 @@ import org.springframework.data.repository.query.FluentQuery;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.ldap.core.LdapMapperClient;
-import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.util.Assert;
 
@@ -62,8 +61,7 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 
 	private final EntityInformation<T, ?> entityInformation;
 	private final ProjectionFactory projectionFactory;
-	private final LdapMapperClient<T> ldap;
-	private final ObjectDirectoryMapper odm;
+	private final LdapMapperClient ldap;
 	private final MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext;
 	private final EntityInstantiators entityInstantiators = new EntityInstantiators();
 
@@ -76,18 +74,16 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 	 * @param mappingContext must not be {@literal null}.
 	 */
 	public QuerydslLdapClientPredicateExecutor(Class<T> entityType, ProjectionFactory projectionFactory,
-											   LdapMapperClient<T> ldap, ObjectDirectoryMapper odm,
+											   LdapMapperClient ldap,
 											   MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext) {
 
 		Assert.notNull(entityType, "Entity type must not be null");
 		Assert.notNull(projectionFactory, "ProjectionFactory must not be null");
 		Assert.notNull(ldap, "LdapClient must not be null");
-		Assert.notNull(odm, "ObjectDirectMapper must not be null");
 		Assert.notNull(mappingContext, "MappingContext must not be null");
 
-		this.entityInformation = new LdapEntityInformation<>(entityType, odm);
+		this.entityInformation = new LdapEntityInformation<>(entityType, ldap.map(entityType));
 		this.ldap = ldap;
-		this.odm = odm;
 		this.projectionFactory = projectionFactory;
 		this.mappingContext = mappingContext;
 	}
@@ -101,18 +97,16 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 	 * @param mappingContext must not be {@literal null}.
 	 */
 	public QuerydslLdapClientPredicateExecutor(EntityInformation<T, ?> entityInformation, ProjectionFactory projectionFactory,
-											   LdapMapperClient<T> ldap, ObjectDirectoryMapper odm,
+											   LdapMapperClient ldap,
 											   MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext) {
 
 		Assert.notNull(entityInformation, "EntityInformation must not be null");
 		Assert.notNull(projectionFactory, "ProjectionFactory must not be null");
 		Assert.notNull(ldap, "LdapClient must not be null");
-		Assert.notNull(odm, "ObjectDirectMapper must not be null");
 		Assert.notNull(mappingContext, "MappingContext must not be null");
 
 		this.entityInformation = entityInformation;
 		this.ldap = ldap;
-		this.odm = odm;
 		this.projectionFactory = projectionFactory;
 		this.mappingContext = mappingContext;
 	}
@@ -204,7 +198,9 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 
 		Assert.notNull(predicate, "Predicate must not be null");
 
-		return new QuerydslLdapClientQuery<>(ldap, entityInformation.getJavaType(), queryBuilderConsumer, new LdapSerializer(odm, entityInformation.getJavaType()))
+		Class<T> clazz = entityInformation.getJavaType();
+		LdapSerializer serializer = new LdapSerializer(ldap.map(clazz));
+		return new QuerydslLdapClientQuery<>(ldap, clazz, queryBuilderConsumer, serializer)
 				.where(predicate);
 	}
 
@@ -321,12 +317,12 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 
 		@Override
 		public long count() {
-			return search(null, q -> q.search(it -> true)).size();
+			return search(null, q -> q.list()).size();
 		}
 
 		@Override
 		public boolean exists() {
-			return !search(1, q -> q.search(it -> true)).isEmpty();
+			return !search(1, q -> q.list()).isEmpty();
 		}
 
 

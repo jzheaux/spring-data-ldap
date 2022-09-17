@@ -37,8 +37,6 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.data.repository.cdi.CdiRepositoryBean;
 import org.springframework.data.repository.cdi.CdiRepositoryExtensionSupport;
 import org.springframework.ldap.core.LdapMapperClient;
-import org.springframework.ldap.core.LdapOperations;
-import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 
 /**
  * CDI extension to export LDAP repositories.
@@ -50,8 +48,7 @@ public class LdapClientRepositoryExtension extends CdiRepositoryExtensionSupport
 
 	private static final Log LOG = LogFactory.getLog(LdapClientRepositoryExtension.class);
 
-	private final Map<Set<Annotation>, Bean<LdapMapperClient<?>>> ldap = new HashMap<>();
-	private final Map<Set<Annotation>, Bean<ObjectDirectoryMapper>> odm = new HashMap<>();
+	private final Map<Set<Annotation>, Bean<LdapMapperClient>> ldap = new HashMap<>();
 
 	public LdapClientRepositoryExtension() {
 		LOG.info("Activating CDI extension for Spring Data LDAP repositories");
@@ -70,16 +67,7 @@ public class LdapClientRepositoryExtension extends CdiRepositoryExtensionSupport
 				}
 
 				// Store the EntityManager bean using its qualifiers.
-				ldap.put(new HashSet<>(bean.getQualifiers()), (Bean<LdapMapperClient<?>>) bean);
-			}
-			if (type instanceof Class<?> && ObjectDirectoryMapper.class.isAssignableFrom((Class<?>) type)) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug(
-							String.format("Discovered %s with qualifiers %s", ObjectDirectoryMapper.class.getName(), bean.getQualifiers()));
-				}
-
-				// Store the EntityManager bean using its qualifiers.
-				odm.put(new HashSet<>(bean.getQualifiers()), (Bean<ObjectDirectoryMapper>) bean);
+				ldap.put(new HashSet<>(bean.getQualifiers()), (Bean<LdapMapperClient>) bean);
 			}
 		}
 	}
@@ -116,20 +104,15 @@ public class LdapClientRepositoryExtension extends CdiRepositoryExtensionSupport
 			BeanManager beanManager) {
 
 		// Determine the LdapMapperClient bean which matches the qualifiers of the repository.
-		Bean<LdapMapperClient<?>> ldap = this.ldap.get(qualifiers);
-		Bean<ObjectDirectoryMapper> odm = this.odm.get(qualifiers);
+		Bean<LdapMapperClient> ldap = this.ldap.get(qualifiers);
 
 		if (ldap == null) {
 			throw new UnsatisfiedResolutionException(String.format("Unable to resolve a bean for '%s' with qualifiers %s",
 					LdapMapperClient.class.getName(), qualifiers));
 		}
-		if (odm == null) {
-			throw new UnsatisfiedResolutionException(String.format("Unable to resolve a bean for '%s' with qualifiers %s",
-					ObjectDirectoryMapper.class.getName(), qualifiers));
-		}
 
 		// Construct and return the repository bean.
-		return new LdapClientRepositoryBean(ldap, odm, qualifiers, repositoryType, beanManager,
+		return new LdapClientRepositoryBean(ldap, qualifiers, repositoryType, beanManager,
 				Optional.of(getCustomImplementationDetector()));
 	}
 }

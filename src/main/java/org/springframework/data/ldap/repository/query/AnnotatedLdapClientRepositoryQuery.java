@@ -15,7 +15,8 @@
  */
 package org.springframework.data.ldap.repository.query;
 
-import org.springframework.data.ldap.repository.LdapRepository;
+import java.util.function.Consumer;
+
 import org.springframework.data.ldap.repository.Query;
 import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.PersistentProperty;
@@ -23,6 +24,7 @@ import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.mapping.model.EntityInstantiators;
 import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.query.LdapQuery;
+import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.util.Assert;
 
 import static org.springframework.ldap.query.LdapQueryBuilder.query;
@@ -46,7 +48,7 @@ public class AnnotatedLdapClientRepositoryQuery extends AbstractLdapClientReposi
 	 * @param mappingContext must not be {@literal null}.
 	 * @param instantiators must not be {@literal null}.
 	 */
-	public AnnotatedLdapClientRepositoryQuery(LdapQueryMethod queryMethod, Class<?> entityType, LdapMapperClient<?> ldap,
+	public AnnotatedLdapClientRepositoryQuery(LdapQueryMethod queryMethod, Class<?> entityType, LdapMapperClient ldap,
 											  MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext,
 											  EntityInstantiators instantiators) {
 
@@ -59,9 +61,8 @@ public class AnnotatedLdapClientRepositoryQuery extends AbstractLdapClientReposi
 	}
 
 	@Override
-	protected LdapQuery createQuery(LdapParameterAccessor parameters) {
-
-		return query().base(queryAnnotation.base()) //
+	protected Consumer<LdapQueryBuilder> createQuery(LdapParameterAccessor parameters) {
+		return (builder) -> builder.base(queryAnnotation.base()) //
 				.searchScope(queryAnnotation.searchScope()) //
 				.countLimit(queryAnnotation.countLimit()) //
 				.timeLimit(queryAnnotation.timeLimit()) //

@@ -16,10 +16,13 @@
 
 package org.springframework.data.ldap.repository.support;
 
+import java.util.function.Function;
+
 import javax.naming.Name;
 
 import org.springframework.data.repository.core.support.AbstractEntityInformation;
 import org.springframework.lang.Nullable;
+import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 
 /**
@@ -32,17 +35,22 @@ import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
  */
 class LdapEntityInformation<T> extends AbstractEntityInformation<T, Name> {
 
-	private final ObjectDirectoryMapper odm;
+	private final Function<T, Name> idRetriever;
 
 	public LdapEntityInformation(Class<T> domainClass, ObjectDirectoryMapper odm) {
 		super(domainClass);
-		this.odm = odm;
+		this.idRetriever = odm::getId;
+	}
+
+	public LdapEntityInformation(Class<T> domainClass, LdapMapperClient.MapSpec<T> mapping) {
+		super(domainClass);
+		this.idRetriever = mapping::id;
 	}
 
 	@Nullable
 	@Override
 	public Name getId(T entity) {
-		return odm.getId(entity);
+		return idRetriever.apply(entity);
 	}
 
 	@Override

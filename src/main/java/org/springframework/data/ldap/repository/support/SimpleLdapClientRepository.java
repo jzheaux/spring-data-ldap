@@ -46,18 +46,22 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 
 	private static final String OBJECTCLASS_ATTRIBUTE = "objectclass";
 
-	private final LdapMapperClient<T> ldap;
+	private final LdapMapperClient ldap;
+
+	private final Class<T> entityType;
 
 	/**
 	 * Creates a new {@link SimpleLdapClientRepository}.
 	 *
 	 * @param ldap must not be {@literal null}.
 	 */
-	public SimpleLdapClientRepository(LdapMapperClient<T> ldap) {
+	public SimpleLdapClientRepository(LdapMapperClient ldap, Class<T> entityType) {
 
 		Assert.notNull(ldap, "LdapClient must not be null");
+		Assert.notNull(entityType, "EntityType must not be null");
 
 		this.ldap = ldap;
+		this.entityType = entityType;
 	}
 
 	/**
@@ -65,13 +69,15 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 	 *
 	 * @param ldap must not be {@literal null}.
 	 */
-	SimpleLdapClientRepository(LdapMapperClient<T> ldap,
+	SimpleLdapClientRepository(LdapMapperClient ldap, Class<T> entityType,
 							   MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> context) {
 
 		Assert.notNull(ldap, "LdapClient must not be null");
+		Assert.notNull(entityType, "EntityType must not be null");
 		Assert.notNull(context, "MappingContext must not be null");
 
 		this.ldap = ldap;
+		this.entityType = entityType;
 	}
 
 	// -------------------------------------------------------------------------
@@ -100,7 +106,7 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 		Assert.notNull(name, "Id must not be null");
 
 		try {
-			T result = ldap.search().name(name).toObject();
+			T result = ldap.search(entityType).name(name).toObject();
 			return Optional.ofNullable(result);
 		} catch (NameNotFoundException e) {
 			return Optional.empty();
@@ -117,7 +123,7 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 
 	@Override
 	public List<T> findAll() {
-		return ldap.search().toList();
+		return ldap.search(entityType).toList();
 	}
 
 	@Override
@@ -131,15 +137,15 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 
 	@Override
 	public long count() {
-		return ldap.search().query((builder) -> builder.attributes(OBJECTCLASS_ATTRIBUTE)).toList().size();
+		return ldap.search(entityType).query((builder) -> builder.attributes(OBJECTCLASS_ATTRIBUTE)).toList().size();
 	}
 
 	@Override
-	public void deleteById(Name name) {
+	public void deleteById(Name id) {
 
-		Assert.notNull(name, "Id must not be null");
+		Assert.notNull(id, "Id must not be null");
 
-		ldap.unbind(name);
+		ldap.delete(id);
 	}
 
 	@Override
@@ -194,7 +200,7 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 	@Override
 	public List<T> findAll(LdapQuery ldapQuery) {
 		Assert.notNull(ldapQuery, "LdapQuery must not be null");
-		return ldap.search().query(ldapQuery).toList();
+		return ldap.search(entityType).query(ldapQuery).toList();
 	}
 
 

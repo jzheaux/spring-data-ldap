@@ -17,8 +17,8 @@ package org.springframework.data.ldap.repository.query;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
-import org.springframework.data.ldap.repository.LdapRepository;
 import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.context.MappingContext;
@@ -27,8 +27,8 @@ import org.springframework.data.repository.query.RepositoryQuery;
 import org.springframework.data.repository.query.ReturnedType;
 import org.springframework.data.repository.query.parser.PartTree;
 import org.springframework.ldap.core.LdapMapperClient;
-import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 import org.springframework.ldap.query.LdapQuery;
+import org.springframework.ldap.query.LdapQueryBuilder;
 
 /**
  * {@link RepositoryQuery} implementation for LDAP.
@@ -39,7 +39,7 @@ import org.springframework.ldap.query.LdapQuery;
 public class PartTreeLdapClientRepositoryQuery extends AbstractLdapClientRepositoryQuery {
 
 	private final PartTree partTree;
-	private final ObjectDirectoryMapper objectDirectoryMapper;
+	private final LdapMapperClient ldap;
 
 	/**
 	 * Creates a new {@link PartTreeLdapClientRepositoryQuery}.
@@ -50,18 +50,18 @@ public class PartTreeLdapClientRepositoryQuery extends AbstractLdapClientReposit
 	 * @param mappingContext must not be {@literal null}.
 	 * @param instantiators must not be {@literal null}.
 	 */
-	public PartTreeLdapClientRepositoryQuery(LdapQueryMethod queryMethod, Class<?> entityType, LdapMapperClient<?> ldap, ObjectDirectoryMapper odm,
+	public PartTreeLdapClientRepositoryQuery(LdapQueryMethod queryMethod, Class<?> entityType, LdapMapperClient ldap,
 											 MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext,
 											 EntityInstantiators instantiators) {
 
 		super(queryMethod, entityType, ldap, mappingContext, instantiators);
 
+		this.ldap = ldap;
 		partTree = new PartTree(queryMethod.getName(), entityType);
-		objectDirectoryMapper = odm;
 	}
 
 	@Override
-	protected LdapQuery createQuery(LdapParameterAccessor parameters) {
+	protected Consumer<LdapQueryBuilder> createQuery(LdapParameterAccessor parameters) {
 
 		List<String> inputProperties = Collections.emptyList();
 		ReturnedType returnedType = getQueryMethod().getResultProcessor().withDynamicProjection(parameters)
@@ -71,8 +71,8 @@ public class PartTreeLdapClientRepositoryQuery extends AbstractLdapClientReposit
 			inputProperties = returnedType.getInputProperties();
 		}
 
-		LdapQueryCreator queryCreator = new LdapQueryCreator(partTree,
-				getEntityClass(), objectDirectoryMapper, parameters, inputProperties);
+		LdapClientQueryCreator queryCreator = new LdapClientQueryCreator(partTree,
+				getEntityClass(), ldap, parameters, inputProperties);
 		return queryCreator.createQuery();
 	}
 }

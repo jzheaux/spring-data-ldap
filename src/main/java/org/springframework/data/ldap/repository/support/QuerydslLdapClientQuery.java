@@ -24,15 +24,11 @@ import com.querydsl.core.support.QueryMixin;
 import com.querydsl.core.types.EntityPath;
 import com.querydsl.core.types.Predicate;
 
-import org.springframework.ldap.core.ContextMapper;
-import org.springframework.ldap.core.LdapClient;
 import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.filter.AbsoluteTrueFilter;
 import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.util.Assert;
-
-import static org.springframework.ldap.query.LdapQueryBuilder.query;
 
 /**
  * Spring LDAP specific {@link FilteredClause} implementation.
@@ -43,7 +39,7 @@ import static org.springframework.ldap.query.LdapQueryBuilder.query;
  */
 public class QuerydslLdapClientQuery<K> implements FilteredClause<QuerydslLdapClientQuery<K>> {
 
-	private final LdapMapperClient<K> ldap;
+	private final LdapMapperClient ldap;
 	private final Class<K> entityType;
 	private final LdapSerializer filterGenerator;
 	private final Consumer<LdapQueryBuilder> queryCustomizer;
@@ -56,7 +52,7 @@ public class QuerydslLdapClientQuery<K> implements FilteredClause<QuerydslLdapCl
 	 * @param ldap must not be {@literal null}.
 	 * @param entityPath must not be {@literal null}.
 	 */
-	public QuerydslLdapClientQuery(LdapMapperClient<K> ldap, EntityPath<K> entityPath, LdapSerializer ldapSerializer) {
+	public QuerydslLdapClientQuery(LdapMapperClient ldap, EntityPath<K> entityPath, LdapSerializer ldapSerializer) {
 		this(ldap, (Class<K>) entityPath.getType(), ldapSerializer);
 	}
 
@@ -66,7 +62,7 @@ public class QuerydslLdapClientQuery<K> implements FilteredClause<QuerydslLdapCl
 	 * @param ldap must not be {@literal null}.
 	 * @param entityType must not be {@literal null}.
 	 */
-	public QuerydslLdapClientQuery(LdapMapperClient<K> ldap, Class<K> entityType, LdapSerializer ldapSerializer) {
+	public QuerydslLdapClientQuery(LdapMapperClient ldap, Class<K> entityType, LdapSerializer ldapSerializer) {
 		this(ldap, entityType, it -> {
 
 		}, ldapSerializer);
@@ -80,7 +76,7 @@ public class QuerydslLdapClientQuery<K> implements FilteredClause<QuerydslLdapCl
 	 * @param queryCustomizer must not be {@literal null}.
 	 * @since 2.6
 	 */
-	public QuerydslLdapClientQuery(LdapMapperClient<K> ldap, Class<K> entityType,
+	public QuerydslLdapClientQuery(LdapMapperClient ldap, Class<K> entityType,
 								   Consumer<LdapQueryBuilder> queryCustomizer, LdapSerializer ldapSerializer) {
 
 		Assert.notNull(ldap, "LdapClient must not be null");
@@ -105,33 +101,24 @@ public class QuerydslLdapClientQuery<K> implements FilteredClause<QuerydslLdapCl
 
 	@SuppressWarnings("unchecked")
 	public List<K> list() {
-
-		LdapQuery ldapQuery = buildQuery();
-		if (ldapQuery.filter() instanceof AbsoluteTrueFilter) {
-			return ldap.search().toList();
-		}
-
-		return ldap.search().query(ldapQuery).toList();
-	}
-
-	<T> List<T> search(ContextMapper<T> mapper) {
-
-		LdapQuery ldapQuery = buildQuery();
-
-		return ldap.search().query(ldapQuery).toList(mapper);
+		return ldap.search(entityType).query(buildQuery()).toList();
 	}
 
 	public K uniqueResult() {
-		return ldap.search().query(buildQuery()).toObject();
+		return ldap.search(entityType).query(buildQuery()).toObject();
 	}
 
-	LdapQuery buildQuery() {
+	Consumer<LdapQueryBuilder> buildQuery() {
+		return (builder) -> {
+			Predicate where = queryMixin.getMetadata().getWhere();
 
-		Predicate where = queryMixin.getMetadata().getWhere();
+			queryCustomizer.accept(builder);
 
-		LdapQueryBuilder builder = query();
-		queryCustomizer.accept(builder);
-
-		return where != null ? builder.filter(filterGenerator.handle(where)) : builder.filter(new AbsoluteTrueFilter());
+			if (where != null) {
+				builder.filter(filterGenerator.handle(where));
+			} else {
+				builder.filter(new AbsoluteTrueFilter());
+			}
+		};
 	}
 }

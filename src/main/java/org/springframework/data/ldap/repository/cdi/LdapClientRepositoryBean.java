@@ -27,7 +27,6 @@ import org.springframework.data.ldap.repository.support.LdapClientRepositoryFact
 import org.springframework.data.repository.cdi.CdiRepositoryBean;
 import org.springframework.data.repository.config.CustomRepositoryImplementationDetector;
 import org.springframework.ldap.core.LdapMapperClient;
-import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 import org.springframework.util.Assert;
 
 /**
@@ -38,8 +37,7 @@ import org.springframework.util.Assert;
  */
 public class LdapClientRepositoryBean<T> extends CdiRepositoryBean<T> {
 
-	private final Bean<LdapMapperClient<T>> ldap;
-	private final Bean<ObjectDirectoryMapper> odm;
+	private final Bean<LdapMapperClient> ldap;
 
 	/**
 	 * Creates a new {@link LdapClientRepositoryBean}.
@@ -51,7 +49,7 @@ public class LdapClientRepositoryBean<T> extends CdiRepositoryBean<T> {
 	 * @param detector detector for the custom {@link org.springframework.data.repository.Repository} implementations
 	 *          {@link CustomRepositoryImplementationDetector}, can be {@link Optional#empty()}.
 	 */
-	LdapClientRepositoryBean(Bean<LdapMapperClient<T>> ldap, Bean<ObjectDirectoryMapper> odm, Set<Annotation> qualifiers, Class<T> repositoryType,
+	LdapClientRepositoryBean(Bean<LdapMapperClient> ldap, Set<Annotation> qualifiers, Class<T> repositoryType,
 							 BeanManager beanManager, Optional<CustomRepositoryImplementationDetector> detector) {
 
 		super(qualifiers, repositoryType, beanManager, detector);
@@ -59,16 +57,14 @@ public class LdapClientRepositoryBean<T> extends CdiRepositoryBean<T> {
 		Assert.notNull(ldap, "LdapClient bean must not be null");
 		Assert.notNull(ldap, "ObjectDirectoryMapper bean must not be null");
 		this.ldap = ldap;
-		this.odm = odm;
 	}
 
 	@Override
 	protected T create(CreationalContext<T> creationalContext, Class<T> repositoryType) {
 
-		LdapMapperClient<T> ldap = getDependencyInstance(this.ldap, LdapMapperClient.class);
-		ObjectDirectoryMapper odm = getDependencyInstance(this.odm, ObjectDirectoryMapper.class);
+		LdapMapperClient ldap = getDependencyInstance(this.ldap, LdapMapperClient.class);
 
-		return create(() -> new LdapClientRepositoryFactory(ldap, odm), repositoryType);
+		return create(() -> new LdapClientRepositoryFactory(ldap), repositoryType);
 	}
 
 	@Override

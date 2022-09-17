@@ -21,7 +21,6 @@ import java.util.Optional;
 
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.ldap.core.mapping.LdapMappingContext;
-import org.springframework.data.ldap.repository.LdapRepository;
 import org.springframework.data.ldap.repository.query.AnnotatedLdapClientRepositoryQuery;
 import org.springframework.data.ldap.repository.query.LdapQueryMethod;
 import org.springframework.data.ldap.repository.query.PartTreeLdapClientRepositoryQuery;
@@ -41,7 +40,6 @@ import org.springframework.data.repository.query.QueryLookupStrategy.Key;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.data.repository.query.RepositoryQuery;
 import org.springframework.lang.Nullable;
-import org.springframework.ldap.core.LdapClient;
 import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 import org.springframework.util.Assert;
@@ -60,8 +58,7 @@ import static org.springframework.data.repository.core.support.RepositoryComposi
 public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 
 	private final LdapClientQueryLookupStrategy queryLookupStrategy;
-	private final LdapMapperClient<?> ldap;
-	private final ObjectDirectoryMapper odm;
+	private final LdapMapperClient ldap;
 	private final MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext;
 	private final EntityInstantiators instantiators = new EntityInstantiators();
 
@@ -70,14 +67,13 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 	 *
 	 * @param ldap must not be {@literal null}.
 	 */
-	public LdapClientRepositoryFactory(LdapMapperClient<?> ldap, ObjectDirectoryMapper odm) {
+	public LdapClientRepositoryFactory(LdapMapperClient ldap) {
 
 		Assert.notNull(ldap, "LdapClient must not be null");
 
 		this.ldap = ldap;
-		this.odm = odm;
 		this.mappingContext = new LdapMappingContext();
-		this.queryLookupStrategy = new LdapClientQueryLookupStrategy(ldap, odm, instantiators, mappingContext);
+		this.queryLookupStrategy = new LdapClientQueryLookupStrategy(ldap, instantiators, mappingContext);
 	}
 
 	/**
@@ -86,22 +82,21 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 	 * @param ldap must not be {@literal null}.
 	 * @param mappingContext must not be {@literal null}.
 	 */
-	LdapClientRepositoryFactory(LdapMapperClient<?> ldap, ObjectDirectoryMapper odm,
+	LdapClientRepositoryFactory(LdapMapperClient ldap,
 								MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext) {
 
 		Assert.notNull(ldap, "LdapClient must not be null");
 		Assert.notNull(mappingContext, "LdapMappingContext must not be null");
 
-		this.queryLookupStrategy = new LdapClientQueryLookupStrategy(ldap, odm, instantiators, mappingContext);
+		this.queryLookupStrategy = new LdapClientQueryLookupStrategy(ldap, instantiators, mappingContext);
 		this.ldap = ldap;
-		this.odm = odm;
 		this.mappingContext = mappingContext;
 	}
 
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public <T, ID> EntityInformation<T, ID> getEntityInformation(Class<T> domainClass) {
-		return new LdapEntityInformation(domainClass, odm);
+		return new LdapEntityInformation(domainClass, ldap.map(domainClass));
 	}
 
 	@Override
@@ -125,7 +120,7 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 	 * @return
 	 * @since 2.6
 	 */
-	protected RepositoryFragments getRepositoryFragments(RepositoryMetadata metadata, LdapMapperClient<?> ldap) {
+	protected RepositoryFragments getRepositoryFragments(RepositoryMetadata metadata, LdapMapperClient ldap) {
 
 		boolean isQueryDslRepository = QUERY_DSL_PRESENT
 				&& QuerydslPredicateExecutor.class.isAssignableFrom(metadata.getRepositoryInterface());
@@ -138,7 +133,7 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 			}
 
 			return RepositoryFragments.just(new QuerydslLdapClientPredicateExecutor<>(
-					getEntityInformation(metadata.getDomainType()), getProjectionFactory(), ldap, odm, mappingContext));
+					getEntityInformation(metadata.getDomainType()), getProjectionFactory(), ldap, mappingContext));
 		}
 
 		return RepositoryFragments.empty();
@@ -190,16 +185,14 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 
 	private static final class LdapClientQueryLookupStrategy implements QueryLookupStrategy {
 
-		private final LdapMapperClient<?> ldap;
-		private final ObjectDirectoryMapper odm;
+		private final LdapMapperClient ldap;
 		private final EntityInstantiators instantiators;
 		private final MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext;
 
-		public LdapClientQueryLookupStrategy(LdapMapperClient<?> ldap, ObjectDirectoryMapper odm, EntityInstantiators instantiators,
+		public LdapClientQueryLookupStrategy(LdapMapperClient ldap, EntityInstantiators instantiators,
 											 MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext) {
 
 			this.ldap = ldap;
-			this.odm = odm;
 			this.instantiators = instantiators;
 			this.mappingContext = mappingContext;
 		}
@@ -213,7 +206,7 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 			if (queryMethod.hasQueryAnnotation()) {
 				return new AnnotatedLdapClientRepositoryQuery(queryMethod, domainType, ldap, mappingContext, instantiators);
 			} else {
-				return new PartTreeLdapClientRepositoryQuery(queryMethod, domainType, ldap, odm, mappingContext, instantiators);
+				return new PartTreeLdapClientRepositoryQuery(queryMethod, domainType, ldap, mappingContext, instantiators);
 			}
 		}
 	}

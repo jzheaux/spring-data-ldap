@@ -15,6 +15,21 @@
  */
 package org.springframework.data.ldap.repository.support;
 
+import java.util.function.Function;
+
+import com.querydsl.core.types.Constant;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.FactoryExpression;
+import com.querydsl.core.types.Operation;
+import com.querydsl.core.types.Operator;
+import com.querydsl.core.types.Ops;
+import com.querydsl.core.types.ParamExpression;
+import com.querydsl.core.types.Path;
+import com.querydsl.core.types.SubQueryExpression;
+import com.querydsl.core.types.TemplateExpression;
+import com.querydsl.core.types.Visitor;
+
+import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.filter.AndFilter;
 import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.ldap.filter.Filter;
@@ -26,8 +41,6 @@ import org.springframework.ldap.filter.OrFilter;
 import org.springframework.ldap.filter.PresentFilter;
 import org.springframework.ldap.odm.core.ObjectDirectoryMapper;
 
-import com.querydsl.core.types.*;
-
 /**
  * Helper class for generating LDAP filters from QueryDSL Expressions.
  *
@@ -36,8 +49,7 @@ import com.querydsl.core.types.*;
  */
 class LdapSerializer implements Visitor<Object, Void> {
 
-	private final ObjectDirectoryMapper odm;
-	private final Class<?> entityType;
+	private final Function<String, String> attributeRetriever;
 
 	/**
 	 * Creates a new {@link LdapSerializer}.
@@ -46,9 +58,11 @@ class LdapSerializer implements Visitor<Object, Void> {
 	 * @param entityType
 	 */
 	public LdapSerializer(ObjectDirectoryMapper odm, Class<?> entityType) {
+		this.attributeRetriever = (fieldName) -> odm.attributeFor(entityType, fieldName);
+	}
 
-		this.odm = odm;
-		this.entityType = entityType;
+	public <T> LdapSerializer(LdapMapperClient.MapSpec<T> mapping) {
+		this.attributeRetriever = mapping::field;
 	}
 
 	public Filter handle(Expression<?> expression) {
@@ -104,7 +118,7 @@ class LdapSerializer implements Visitor<Object, Void> {
 	}
 
 	private String attribute(Operation<?> expr) {
-		return odm.attributeFor(entityType, (String) expr.getArg(0).accept(this, null));
+		return attributeRetriever.apply((String) expr.getArg(0).accept(this, null));
 	}
 
 	@Override

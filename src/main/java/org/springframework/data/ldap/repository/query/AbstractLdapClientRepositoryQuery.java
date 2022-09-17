@@ -15,8 +15,9 @@
  */
 package org.springframework.data.ldap.repository.query;
 
+import java.util.function.Consumer;
+
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.data.ldap.repository.LdapRepository;
 import org.springframework.data.ldap.repository.Query;
 import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.PersistentProperty;
@@ -25,10 +26,10 @@ import org.springframework.data.mapping.model.EntityInstantiators;
 import org.springframework.data.repository.query.QueryMethod;
 import org.springframework.data.repository.query.RepositoryQuery;
 import org.springframework.data.repository.query.ResultProcessor;
-import org.springframework.ldap.core.LdapClient;
 import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.core.LdapOperations;
 import org.springframework.ldap.query.LdapQuery;
+import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.util.Assert;
 
 import static org.springframework.data.ldap.repository.query.LdapClientQueryExecution.CollectionExecution;
@@ -47,7 +48,7 @@ public abstract class AbstractLdapClientRepositoryQuery implements RepositoryQue
 
 	private final LdapQueryMethod queryMethod;
 	private final Class<?> entityType;
-	private final LdapMapperClient<?> ldap;
+	private final LdapMapperClient ldap;
 	private final MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext;
 	private final EntityInstantiators instantiators;
 
@@ -61,7 +62,7 @@ public abstract class AbstractLdapClientRepositoryQuery implements RepositoryQue
 	 * @param mappingContext must not be {@literal null}.
 	 * @param instantiators must not be {@literal null}.
 	 */
-	public AbstractLdapClientRepositoryQuery(LdapQueryMethod queryMethod, Class<?> entityType, LdapMapperClient<?> ldap,
+	public AbstractLdapClientRepositoryQuery(LdapQueryMethod queryMethod, Class<?> entityType, LdapMapperClient ldap,
 											 MappingContext<? extends PersistentEntity<?, ?>, ? extends PersistentProperty<?>> mappingContext,
 											 EntityInstantiators instantiators) {
 
@@ -81,7 +82,7 @@ public abstract class AbstractLdapClientRepositoryQuery implements RepositoryQue
 	public final Object execute(Object[] parameters) {
 
 		LdapParametersParameterAccessor parameterAccessor = new LdapParametersParameterAccessor(queryMethod, parameters);
-		LdapQuery query = createQuery(parameterAccessor);
+		Consumer<LdapQueryBuilder> query = createQuery(parameterAccessor);
 
 		ResultProcessor processor = queryMethod.getResultProcessor().withDynamicProjection(parameterAccessor);
 
@@ -96,11 +97,11 @@ public abstract class AbstractLdapClientRepositoryQuery implements RepositoryQue
 			Converter<Object, Object> resultProcessing) {
 
 		if (queryMethod.isCollectionQuery()) {
-			return new CollectionExecution(ldap);
+			return new CollectionExecution(ldap, entityType);
 		} else if (queryMethod.isStreamQuery()) {
-			return new StreamExecution(ldap, resultProcessing);
+			return new StreamExecution(ldap, entityType, resultProcessing);
 		} else {
-			return new FindOneExecution(ldap);
+			return new FindOneExecution(ldap, entityType);
 		}
 	}
 
@@ -110,7 +111,7 @@ public abstract class AbstractLdapClientRepositoryQuery implements RepositoryQue
 	 * @param parameters must not be {@literal null}.
 	 * @return
 	 */
-	protected abstract LdapQuery createQuery(LdapParameterAccessor parameters);
+	protected abstract Consumer<LdapQueryBuilder> createQuery(LdapParameterAccessor parameters);
 
 	/**
 	 * @return
