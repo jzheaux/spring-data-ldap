@@ -41,7 +41,7 @@ import org.springframework.util.Assert;
 class LdapClientQueryCreator extends AbstractQueryCreator<Consumer<LdapQueryBuilder>, ContainerCriteria> {
 
 	private final Class<?> entityType;
-	private final LdapMapperClient.MapSpec<?> ldap;
+	private final LdapMapperClient.MapTypeSpec<?> ldap;
 	private final List<String> inputProperties;
 
 	/**

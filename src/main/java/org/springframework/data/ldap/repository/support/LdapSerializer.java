@@ -61,8 +61,8 @@ class LdapSerializer implements Visitor<Object, Void> {
 		this.attributeRetriever = (fieldName) -> odm.attributeFor(entityType, fieldName);
 	}
 
-	public <T> LdapSerializer(LdapMapperClient.MapSpec<T> mapping) {
-		this.attributeRetriever = mapping::field;
+	public LdapSerializer(LdapMapperClient ldap, Class<?> entityType) {
+		this.attributeRetriever = (fieldName) -> ldap.map(entityType).field(fieldName);
 	}
 
 	public Filter handle(Expression<?> expression) {

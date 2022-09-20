@@ -153,7 +153,7 @@ public class SimpleLdapClientRepository<T> implements LdapRepository<T> {
 
 		Assert.notNull(entity, "Entity must not be null");
 
-		ldap.delete(entity);
+		deleteById(ldap.map(entity).id());
 	}
 
 	@Override

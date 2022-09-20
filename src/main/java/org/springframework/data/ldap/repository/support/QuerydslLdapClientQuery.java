@@ -26,7 +26,6 @@ import com.querydsl.core.types.Predicate;
 
 import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.filter.AbsoluteTrueFilter;
-import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.util.Assert;
 

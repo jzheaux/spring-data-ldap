@@ -82,7 +82,7 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 		Assert.notNull(ldap, "LdapClient must not be null");
 		Assert.notNull(mappingContext, "MappingContext must not be null");
 
-		this.entityInformation = new LdapEntityInformation<>(entityType, ldap.map(entityType));
+		this.entityInformation = new LdapEntityInformation<>(entityType, ldap);
 		this.ldap = ldap;
 		this.projectionFactory = projectionFactory;
 		this.mappingContext = mappingContext;
@@ -199,7 +199,7 @@ public class QuerydslLdapClientPredicateExecutor<T> implements ListQuerydslPredi
 		Assert.notNull(predicate, "Predicate must not be null");
 
 		Class<T> clazz = entityInformation.getJavaType();
-		LdapSerializer serializer = new LdapSerializer(ldap.map(clazz));
+		LdapSerializer serializer = new LdapSerializer(ldap, clazz);
 		return new QuerydslLdapClientQuery<>(ldap, clazz, queryBuilderConsumer, serializer)
 				.where(predicate);
 	}

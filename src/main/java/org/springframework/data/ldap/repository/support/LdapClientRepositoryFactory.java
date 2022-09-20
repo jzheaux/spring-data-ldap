@@ -96,7 +96,7 @@ public class LdapClientRepositoryFactory extends RepositoryFactorySupport {
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public <T, ID> EntityInformation<T, ID> getEntityInformation(Class<T> domainClass) {
-		return new LdapEntityInformation(domainClass, ldap.map(domainClass));
+		return new LdapEntityInformation(domainClass, ldap);
 	}
 
 	@Override

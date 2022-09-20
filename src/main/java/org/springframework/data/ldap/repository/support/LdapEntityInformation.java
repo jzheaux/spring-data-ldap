@@ -42,9 +42,9 @@ class LdapEntityInformation<T> extends AbstractEntityInformation<T, Name> {
 		this.idRetriever = odm::getId;
 	}
 
-	public LdapEntityInformation(Class<T> domainClass, LdapMapperClient.MapSpec<T> mapping) {
+	public LdapEntityInformation(Class<T> domainClass, LdapMapperClient client) {
 		super(domainClass);
-		this.idRetriever = mapping::id;
+		this.idRetriever = (entity) -> client.map(entity).id();
 	}
 
 	@Nullable

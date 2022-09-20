@@ -62,7 +62,7 @@ public class LdapClientRepositoryBean<T> extends CdiRepositoryBean<T> {
 	@Override
 	protected T create(CreationalContext<T> creationalContext, Class<T> repositoryType) {
 
-		LdapMapperClient ldap = getDependencyInstance(this.ldap, LdapMapperClient.class);
+		LdapMapperClient ldap = getDependencyInstance(ldap, LdapMapperClient.class);
 
 		return create(() -> new LdapClientRepositoryFactory(ldap), repositoryType);
 	}

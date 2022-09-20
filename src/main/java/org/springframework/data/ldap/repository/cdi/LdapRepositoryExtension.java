@@ -35,6 +35,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.data.repository.cdi.CdiRepositoryBean;
 import org.springframework.data.repository.cdi.CdiRepositoryExtensionSupport;
+import org.springframework.ldap.core.LdapMapperClient;
 import org.springframework.ldap.core.LdapOperations;
 
 /**
@@ -47,7 +48,9 @@ public class LdapRepositoryExtension extends CdiRepositoryExtensionSupport {
 
 	private static final Log LOG = LogFactory.getLog(LdapRepositoryExtension.class);
 
-	private final Map<Set<Annotation>, Bean<LdapOperations>> ldapOperations = new HashMap<>();
+	private final Map<Set<Annotation>, Bean<LdapMapperClient>> clients = new HashMap<>();
+
+	private final Map<Set<Annotation>, Bean<LdapOperations>> operations = new HashMap<>();
 
 	public LdapRepositoryExtension() {
 		LOG.info("Activating CDI extension for Spring Data LDAP repositories");
@@ -59,14 +62,26 @@ public class LdapRepositoryExtension extends CdiRepositoryExtensionSupport {
 		Bean<X> bean = processBean.getBean();
 
 		for (Type type : bean.getTypes()) {
-			if (type instanceof Class<?> && LdapOperations.class.isAssignableFrom((Class<?>) type)) {
+			if (type instanceof Class<?> && LdapMapperClient.class.isAssignableFrom((Class<?>) type)) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(
-							String.format("Discovered %s with qualifiers %s", LdapOperations.class.getName(), bean.getQualifiers()));
+							String.format("Discovered %s with qualifiers %s", LdapMapperClient.class.getName(), bean.getQualifiers()));
 				}
 
 				// Store the EntityManager bean using its qualifiers.
-				ldapOperations.put(new HashSet<>(bean.getQualifiers()), (Bean<LdapOperations>) bean);
+				clients.put(new HashSet<>(bean.getQualifiers()), (Bean<LdapMapperClient>) bean);
+			}
+		}
+
+		for (Type type : bean.getTypes()) {
+			if (type instanceof Class<?> && LdapOperations.class.isAssignableFrom((Class<?>) type)) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(
+							String.format("Discovered %s with qualifiers %s", LdapMapperClient.class.getName(), bean.getQualifiers()));
+				}
+
+				// Store the EntityManager bean using its qualifiers.
+				operations.put(new HashSet<>(bean.getQualifiers()), (Bean<LdapOperations>) bean);
 			}
 		}
 	}
@@ -94,25 +109,30 @@ public class LdapRepositoryExtension extends CdiRepositoryExtensionSupport {
 	/**
 	 * Creates a {@link CdiRepositoryBean} for the repository of the given type.
 	 *
-	 * @param <T> the type of the repository.
 	 * @param repositoryType the class representing the repository.
 	 * @param qualifiers the qualifiers to be applied to the bean.
 	 * @param beanManager the BeanManager instance.
 	 * @return the repository bean.
 	 */
-	private <T> CdiRepositoryBean<T> createRepositoryBean(Class<T> repositoryType, Set<Annotation> qualifiers,
-			BeanManager beanManager) {
+	private CdiRepositoryBean<?> createRepositoryBean(Class<?> repositoryType, Set<Annotation> qualifiers,
+													  BeanManager beanManager) {
 
-		// Determine the LdapOperations bean which matches the qualifiers of the repository.
-		Bean<LdapOperations> LdapOperations = this.ldapOperations.get(qualifiers);
+		// Determine the LdapMapperClient bean which matches the qualifiers of the repository.
+		Bean<LdapMapperClient> client = this.clients.get(qualifiers);
 
-		if (LdapOperations == null) {
-			throw new UnsatisfiedResolutionException(String.format("Unable to resolve a bean for '%s' with qualifiers %s",
-					LdapOperations.class.getName(), qualifiers));
+		if (client != null) {
+			// Construct and return the repository bean.
+			return new LdapClientRepositoryBean(client, qualifiers, repositoryType, beanManager,
+					Optional.of(getCustomImplementationDetector()));
 		}
 
-		// Construct and return the repository bean.
-		return new LdapRepositoryBean<>(LdapOperations, qualifiers, repositoryType, beanManager,
-				Optional.of(getCustomImplementationDetector()));
+		Bean<LdapOperations> operations = this.operations.get(qualifiers);
+		if (operations != null) {
+			return new LdapRepositoryBean(operations, qualifiers, repositoryType, beanManager,
+					Optional.of(getCustomImplementationDetector()));
+		}
+
+		throw new UnsatisfiedResolutionException(String.format("Unable to resolve a bean for '%s' or '%s' with qualifiers %s",
+				LdapMapperClient.class.getName(), LdapOperations.class.getName(), qualifiers));
 	}
 }
